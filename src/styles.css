@@ -23,7 +23,8 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); ou
 .main-window { height: 100vh; min-height: 0; display: flex; flex-direction: column; overflow: hidden; padding: 0 14px 10px; font-size: 10.67px; background: radial-gradient(circle at 100% 0, #fff 0, transparent 36%), #f4f1eb; }
 .app-bar, .management-header, .panel-title, .entry-header, .favorite-content > header { display: flex; align-items: center; justify-content: space-between; }
 .app-bar { position: relative; height: 40px; flex: 0 0 40px; margin: 0 -14px 4px; padding: 0 11px 0 72px; justify-content: center; user-select: none; cursor: default; }
-.titlebar-title { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); color: #4d4a45; font-size: 13px; font-weight: 600; line-height: 1; pointer-events: none; }
+.titlebar-title { position: absolute; left: 50%; top: 50%; display: inline-flex; align-items: baseline; gap: 4px; transform: translate(-50%, -50%); color: #4d4a45; font-size: 13px; font-weight: 600; line-height: 1; white-space: nowrap; pointer-events: none; }
+.titlebar-title small { color: var(--muted); font-size: 8px; font-weight: 500; letter-spacing: .02em; }
 .app-actions { position: absolute; top: 50%; right: 11px; display: flex; align-items: center; gap: 5px; transform: translateY(-50%); }
 .icon-button { border: 0; padding: 0; line-height: 0; background: transparent; width: 35px; height: 35px; display: grid; place-items: center; border-radius: 10px; cursor: pointer; }
 .icon-button:hover { background: rgba(37,35,31,.07); }

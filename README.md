@@ -231,7 +231,9 @@ npm run tauri build -- --debug --bundles dmg
 
 “关于词库与许可”中的更新按钮只在用户主动点击时联网。更新流程会验证 Ed25519 清单签名、压缩包大小、SHA-256、词库内部版本和 SQLite 完整性，然后使用备份与原子替换安装；任一步失败都继续保留旧词库。
 
-应用构建时必须注入稳定清单 URL 和 Ed25519 公钥：
+项目已在 `.cargo/config.toml` 中配置当前 GitHub 仓库的稳定清单 URL 和 Ed25519 公钥，因此直接运行 `npm run tauri dev` 或 `npm run tauri build` 即可启用更新功能。这里保存的是公开信息，可以提交到 Git；签名私钥仍不得进入项目目录。
+
+需要切换到其他发布仓库或签名密钥时，可以在当前 shell 临时覆盖：
 
 ```bash
 export PLAIN_DICTIONARY_UPDATE_MANIFEST_URL="https://github.com/OWNER/REPOSITORY/releases/download/dictionary-latest/dictionary-manifest.json"

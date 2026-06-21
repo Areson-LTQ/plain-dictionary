@@ -989,3 +989,7 @@ PLAIN_DICTIONARY_UPDATE_PUBLIC_KEY
 ```
 
 GitHub Secret `DICTIONARY_PRIVATE_KEY` 属于远端仓库配置，必须由仓库管理员设置，不能提交到当前目录。
+
+### 固定更新源配置
+
+项目新增 `.cargo/config.toml`，其中保存 GitHub Releases 的公开清单 URL 和公开 Ed25519 验证密钥。这两个值只在当前项目的 Cargo 构建中生效，不会写入全局 shell 环境。配置不包含私钥或访问令牌，可以提交到 Git。

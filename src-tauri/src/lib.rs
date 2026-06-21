@@ -1135,6 +1135,16 @@ mod tests {
     }
 
     #[test]
+    fn project_build_configures_trusted_update_source() {
+        let (url, public_key) = update_configuration().expect("update source should be configured");
+        assert_eq!(
+            url,
+            "https://github.com/Areson-LTQ/plain-dictionary/releases/download/dictionary-latest/dictionary-manifest.json"
+        );
+        assert_eq!(public_key, "f9auhCzb1iknc1nMRUZMo9TSWHoC6CMJOsIod6IJN5Q=");
+    }
+
+    #[test]
     fn verifies_signed_update_manifest_and_rejects_tampering() {
         let signing_key = SigningKey::from_bytes(&[7; 32]);
         let public_key = BASE64.encode(signing_key.verifying_key().to_bytes());

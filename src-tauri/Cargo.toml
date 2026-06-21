@@ -1,6 +1,6 @@
 [package]
 name = "plain-dictionary"
-version = "0.1.0"
+version = "0.1.2"
 description = "A small offline Chinese-English dictionary"
 authors = ["Plain Dictionary contributors"]
 edition = "2021"

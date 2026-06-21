@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { listen } from '@tauri-apps/api/event'
+import { getVersion } from '@tauri-apps/api/app'
 import { getCurrentWindow } from '@tauri-apps/api/window'
 import { api, getErrorMessage } from './api'
 import { EntryView } from './components/EntryView'
@@ -18,6 +19,7 @@ export function MainWindow() {
   const [searched, setSearched] = useState(false)
   const [error, setError] = useState('')
   const [favoriteOpen, setFavoriteOpen] = useState(false)
+  const [appVersion, setAppVersion] = useState('')
   const requestId = useRef(0)
   const debouncedQuery = useDebouncedValue(query, 150)
 
@@ -46,6 +48,7 @@ export function MainWindow() {
   }, [refreshFavoriteStatus])
 
   useEffect(() => {
+    void getVersion().then(setAppVersion).catch(() => undefined)
     void api.getSettings().then((settings) => setAlwaysOnTop(settings.alwaysOnTop)).catch((cause) => setError(getErrorMessage(cause)))
     const unlisten = listen<string>('open-entry', (event) => void openEntry(event.payload, false))
     return () => { void unlisten.then((dispose) => dispose()) }
@@ -92,7 +95,7 @@ export function MainWindow() {
   return (
     <main className="main-window">
       <header className="app-bar" data-tauri-drag-region onMouseDown={startWindowDrag}>
-        <span className="titlebar-title" data-tauri-drag-region>简词</span>
+        <span className="titlebar-title" data-tauri-drag-region>简词{appVersion && <small>v{appVersion}</small>}</span>
         <div className="app-actions">
           <button className="icon-button" onClick={() => void api.openManagementWindow('stats')} title="查看统计" aria-label="查看统计"><ChartIcon /></button>
           <button className={`icon-button ${alwaysOnTop ? 'active' : ''}`} onClick={togglePin} title={alwaysOnTop ? '取消置顶' : '置于顶层'} aria-pressed={alwaysOnTop}><PinIcon /></button>

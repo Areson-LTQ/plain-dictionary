@@ -16,7 +16,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [macos-latest, windows-latest]
+        os: [macos-15, windows-2022]
 
     steps:
       - uses: actions/checkout@v4
@@ -26,9 +26,18 @@ jobs:
           node-version: 22
           cache: npm
 
-      - uses: dtolnay/rust-toolchain@stable
-        with:
-          components: rustfmt
+      - name: Use preinstalled Rust toolchain
+        shell: bash
+        run: |
+          rustc --version
+          cargo --version
+          if ! cargo fmt --version; then
+            for attempt in 1 2 3; do
+              rustup component add rustfmt && break
+              sleep $((attempt * 15))
+            done
+          fi
+          cargo fmt --version
 
       - name: Install frontend dependencies
         run: npm ci

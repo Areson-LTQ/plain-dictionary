@@ -10,6 +10,7 @@ use std::{
     io::{Cursor, Read},
     path::PathBuf,
     sync::Mutex,
+    thread,
     time::Duration,
 };
 use tauri::path::BaseDirectory;
@@ -215,7 +216,8 @@ fn initialize_dictionary(path: &PathBuf) -> Result<(), String> {
         .map_err(db_error)?;
     connection
         .execute_batch(include_str!("dictionary_seed.sql"))
-        .map_err(db_error)
+        .map_err(db_error)?;
+    connection.close().map_err(|(_, error)| db_error(error))
 }
 
 fn validate_dictionary(path: &PathBuf) -> Result<String, String> {
@@ -233,13 +235,40 @@ fn validate_dictionary(path: &PathBuf) -> Result<String, String> {
     if entry_count == 0 {
         return Err("词库没有任何词条".into());
     }
-    connection
+    let version = connection
         .query_row(
             "SELECT value FROM dictionary_metadata WHERE key = 'version'",
             [],
             |row| row.get(0),
         )
-        .map_err(db_error)
+        .map_err(db_error)?;
+    connection.close().map_err(|(_, error)| db_error(error))?;
+    Ok(version)
+}
+
+fn rename_dictionary_file(source: &PathBuf, destination: &PathBuf) -> Result<(), String> {
+    for attempt in 0..5 {
+        match fs::rename(source, destination) {
+            Ok(()) => return Ok(()),
+            Err(error)
+                if attempt < 4
+                    && matches!(
+                        error.kind(),
+                        std::io::ErrorKind::PermissionDenied | std::io::ErrorKind::WouldBlock
+                    ) =>
+            {
+                thread::sleep(Duration::from_millis(25 * (1 << attempt)));
+            }
+            Err(error) => {
+                return Err(format!(
+                    "无法将 {} 移动到 {}: {error}",
+                    source.display(),
+                    destination.display()
+                ));
+            }
+        }
+    }
+    unreachable!("rename retry loop always returns")
 }
 
 fn recover_dictionary_backup(target: &PathBuf) -> Result<(), String> {
@@ -249,7 +278,7 @@ fn recover_dictionary_backup(target: &PathBuf) -> Result<(), String> {
             fs::remove_file(backup).map_err(db_error)?;
         }
     } else if backup.exists() {
-        fs::rename(backup, target).map_err(db_error)?;
+        rename_dictionary_file(&backup, target)?;
     }
     Ok(())
 }
@@ -280,13 +309,13 @@ fn install_dictionary_file(bundled: &PathBuf, target: &PathBuf) -> Result<bool, 
         if backup.exists() {
             fs::remove_file(&backup).map_err(db_error)?;
         }
-        fs::rename(target, &backup).map_err(db_error)?;
+        rename_dictionary_file(target, &backup)?;
     }
-    if let Err(error) = fs::rename(&temporary, target) {
+    if let Err(error) = rename_dictionary_file(&temporary, target) {
         if backup.exists() {
-            let _ = fs::rename(&backup, target);
+            let _ = rename_dictionary_file(&backup, target);
         }
-        return Err(db_error(error));
+        return Err(error);
     }
     if backup.exists() {
         fs::remove_file(backup).map_err(db_error)?;
@@ -1018,7 +1047,9 @@ async fn install_dictionary_update(
         let mut dictionary = state.dictionary.lock().map_err(db_error)?;
         std::mem::replace(&mut *dictionary, placeholder)
     };
-    drop(old_connection);
+    old_connection
+        .close()
+        .map_err(|(_, error)| format!("关闭旧词库连接失败: {error}"))?;
     let install_result = install_dictionary_file(&candidate, &state.dictionary_path);
     let _ = fs::remove_file(&candidate);
     let reopened =
@@ -1248,7 +1279,7 @@ mod tests {
         );
 
         let backup = target.with_extension("sqlite.backup");
-        fs::rename(&target, &backup).expect("backup should be simulated");
+        rename_dictionary_file(&target, &backup).expect("backup should be simulated");
         recover_dictionary_backup(&target).expect("backup should recover");
         assert!(target.exists());
         assert!(!backup.exists());

@@ -296,10 +296,12 @@ fn install_dictionary_file(bundled: &PathBuf, target: &PathBuf) -> Result<bool, 
         fs::remove_file(&temporary).map_err(db_error)?;
     }
     fs::copy(bundled, &temporary).map_err(db_error)?;
-    File::open(&temporary)
-        .map_err(db_error)?
+    File::options()
+        .write(true)
+        .open(&temporary)
+        .map_err(|error| format!("无法打开临时词库 {}: {error}", temporary.display()))?
         .sync_all()
-        .map_err(db_error)?;
+        .map_err(|error| format!("无法同步临时词库 {}: {error}", temporary.display()))?;
     if validate_dictionary(&temporary)? != bundled_version {
         fs::remove_file(temporary).map_err(db_error)?;
         return Err("复制后的词库版本不一致".into());

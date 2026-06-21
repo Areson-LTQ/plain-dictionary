@@ -24,5 +24,13 @@
         "center": true
       }
     ]
+  },
+  "bundle": {
+    "targets": ["nsis"],
+    "windows": {
+      "wix": {
+        "language": "zh-CN"
+      }
+    }
   }
 }

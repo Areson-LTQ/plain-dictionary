@@ -5,6 +5,10 @@ on:
   pull_request:
   workflow_dispatch:
 
+env:
+  PLAIN_DICTIONARY_UPDATE_MANIFEST_URL: https://github.com/Areson-LTQ/plain-dictionary/releases/download/dictionary-latest/dictionary-manifest.json
+  PLAIN_DICTIONARY_UPDATE_PUBLIC_KEY: f9auhCzb1iknc1nMRUZMo9TSWHoC6CMJOsIod6IJN5Q=
+
 jobs:
   test:
     name: ${{ matrix.os }}

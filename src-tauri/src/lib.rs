@@ -6,14 +6,14 @@ use sha2::{Digest, Sha256};
 use std::{
     collections::BTreeMap,
     fs,
-    fs::File,
+    fs::OpenOptions,
     io::{Cursor, Read},
-    path::PathBuf,
+    path::{Path, PathBuf},
     sync::Mutex,
     time::Duration,
 };
 use tauri::path::BaseDirectory;
-use tauri::{Emitter, Manager, State, WebviewUrl, WebviewWindowBuilder};
+use tauri::{Emitter, Manager, State};
 
 struct AppState {
     dictionary: Mutex<Connection>,
@@ -21,6 +21,7 @@ struct AppState {
     dictionary_path: PathBuf,
 }
 
+#[cfg(any(not(debug_assertions), test))]
 const LEGACY_IDENTIFIER: &str = "com.plaindictionary.app";
 const USER_SCHEMA_VERSION: i64 = 1;
 const MAX_MANIFEST_BYTES: usize = 64 * 1024;
@@ -176,6 +177,10 @@ fn db_error(error: impl std::fmt::Display) -> String {
     error.to_string()
 }
 
+fn file_error(action: &str, path: &Path, error: impl std::fmt::Display) -> String {
+    format!("{action} {}: {error}", path.display())
+}
+
 fn initialize_dictionary(path: &PathBuf) -> Result<(), String> {
     if path.exists() {
         return Ok(());
@@ -267,10 +272,12 @@ fn install_dictionary_file(bundled: &PathBuf, target: &PathBuf) -> Result<bool, 
         fs::remove_file(&temporary).map_err(db_error)?;
     }
     fs::copy(bundled, &temporary).map_err(db_error)?;
-    File::open(&temporary)
-        .map_err(db_error)?
+    OpenOptions::new()
+        .write(true)
+        .open(&temporary)
+        .map_err(|error| file_error("failed to open dictionary for syncing", &temporary, error))?
         .sync_all()
-        .map_err(db_error)?;
+        .map_err(|error| file_error("failed to sync dictionary", &temporary, error))?;
     if validate_dictionary(&temporary)? != bundled_version {
         fs::remove_file(temporary).map_err(db_error)?;
         return Err("复制后的词库版本不一致".into());
@@ -280,13 +287,18 @@ fn install_dictionary_file(bundled: &PathBuf, target: &PathBuf) -> Result<bool, 
         if backup.exists() {
             fs::remove_file(&backup).map_err(db_error)?;
         }
-        fs::rename(target, &backup).map_err(db_error)?;
+        fs::rename(target, &backup)
+            .map_err(|error| file_error("failed to back up dictionary", target, error))?;
     }
     if let Err(error) = fs::rename(&temporary, target) {
         if backup.exists() {
             let _ = fs::rename(&backup, target);
         }
-        return Err(db_error(error));
+        return Err(file_error(
+            "failed to activate dictionary",
+            &temporary,
+            error,
+        ));
     }
     if backup.exists() {
         fs::remove_file(backup).map_err(db_error)?;
@@ -350,6 +362,15 @@ fn initialize_user_database(path: &PathBuf) -> Result<Connection, String> {
     Ok(connection)
 }
 
+#[cfg(debug_assertions)]
+fn development_app_data_dir(manifest_dir: &Path) -> PathBuf {
+    manifest_dir
+        .parent()
+        .unwrap_or(manifest_dir)
+        .join(".dev-data")
+}
+
+#[cfg(any(not(debug_assertions), test))]
 fn migrate_legacy_app_data(app_data: &PathBuf) -> Result<(), String> {
     let Some(parent) = app_data.parent() else {
         return Ok(());
@@ -748,31 +769,14 @@ fn set_always_on_top(
 
 #[tauri::command]
 fn open_management_window(app: tauri::AppHandle, tab: Option<String>) -> Result<(), String> {
-    if let Some(window) = app.get_webview_window("management") {
-        window.show().map_err(db_error)?;
-        window.set_focus().map_err(db_error)?;
-        window
-            .emit("select-tab", tab.unwrap_or_else(|| "stats".into()))
-            .map_err(db_error)?;
-        return Ok(());
-    }
-    let url = format!(
-        "index.html?window=management&tab={}",
-        tab.unwrap_or_else(|| "stats".into())
-    );
-    let main_window = app
-        .get_webview_window("main")
-        .ok_or_else(|| "主窗口不存在".to_string())?;
-    WebviewWindowBuilder::new(&app, "management", WebviewUrl::App(url.into()))
-        .parent(&main_window)
-        .map_err(db_error)?
-        .title("简词 · 管理")
-        .inner_size(760.0, 620.0)
-        .min_inner_size(600.0, 460.0)
-        .center()
-        .build()
-        .map_err(db_error)?;
-    Ok(())
+    let window = app
+        .get_webview_window("management")
+        .ok_or_else(|| "管理窗口不存在".to_string())?;
+    window.show().map_err(db_error)?;
+    window.set_focus().map_err(db_error)?;
+    window
+        .emit("select-tab", tab.unwrap_or_else(|| "stats".into()))
+        .map_err(db_error)
 }
 
 #[tauri::command]
@@ -1041,11 +1045,31 @@ async fn install_dictionary_update(
 
 pub fn run() {
     tauri::Builder::default()
+        .on_window_event(|window, event| {
+            if window.label() == "management" {
+                if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                    api.prevent_close();
+                    let _ = window.hide();
+                }
+            }
+            if window.label() == "main"
+                && matches!(event, tauri::WindowEvent::CloseRequested { .. })
+            {
+                if let Some(management) = window.app_handle().get_webview_window("management") {
+                    let _ = management.destroy();
+                }
+                window.app_handle().exit(0);
+            }
+        })
         .setup(|app| {
+            #[cfg(debug_assertions)]
+            let app_data = development_app_data_dir(Path::new(env!("CARGO_MANIFEST_DIR")));
+            #[cfg(not(debug_assertions))]
             let app_data = app
                 .path()
                 .app_data_dir()
                 .map_err(|error| error.to_string())?;
+            #[cfg(not(debug_assertions))]
             migrate_legacy_app_data(&app_data).map_err(|error| error.to_string())?;
             fs::create_dir_all(&app_data)?;
             let dictionary_path = app_data.join("dictionary.sqlite");
@@ -1119,6 +1143,41 @@ mod tests {
     #[test]
     fn normalizes_english_case_and_whitespace() {
         assert_eq!(normalize_query("  Apple "), "apple");
+    }
+
+    #[test]
+    fn keeps_development_data_in_the_project() {
+        let manifest_dir = Path::new("project").join("src-tauri");
+        assert_eq!(
+            development_app_data_dir(&manifest_dir),
+            Path::new("project").join(".dev-data")
+        );
+    }
+
+    #[test]
+    fn window_configuration_preloads_management_window() {
+        let context: tauri::Context<tauri::Wry> = tauri::generate_context!();
+        let windows = &context.config().app.windows;
+        let main = windows
+            .iter()
+            .find(|window| window.label == "main")
+            .expect("main window should be configured");
+        let management = windows
+            .iter()
+            .find(|window| window.label == "management")
+            .expect("management window should be configured");
+
+        assert!(management.create);
+        assert!(!management.visible);
+        assert!(matches!(
+            &management.url,
+            tauri::WebviewUrl::App(path) if path == Path::new("management.html")
+        ));
+        #[cfg(target_os = "windows")]
+        {
+            assert!(!main.hidden_title);
+            assert!(main.traffic_light_position.is_none());
+        }
     }
 
     #[test]

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { listen } from '@tauri-apps/api/event'
+import { getCurrentWindow } from '@tauri-apps/api/window'
 import { api, getErrorMessage } from './api'
 import { ChartIcon, CloseIcon, FolderIcon, StarIcon } from './components/Icons'
 import type { DictionaryUpdateInfo, FavoriteFolder, Metadata, QueryStat, RecentQuery } from './types'
@@ -7,8 +8,7 @@ import type { DictionaryUpdateInfo, FavoriteFolder, Metadata, QueryStat, RecentQ
 type Tab = 'stats' | 'favorites'
 
 export function ManagementWindow() {
-  const initialTab = new URLSearchParams(window.location.search).get('tab') === 'favorites' ? 'favorites' : 'stats'
-  const [tab, setTab] = useState<Tab>(initialTab)
+  const [tab, setTab] = useState<Tab>('stats')
   const [stats, setStats] = useState<QueryStat[]>([])
   const [recent, setRecent] = useState<RecentQuery[]>([])
   const [folders, setFolders] = useState<FavoriteFolder[]>([])
@@ -121,10 +121,13 @@ export function ManagementWindow() {
     <main className="management-window">
       <header className="management-header">
         <div><h1>词语管理</h1></div>
-        <nav className="tabs" aria-label="管理内容">
-          <button className={tab === 'stats' ? 'active' : ''} onClick={() => setTab('stats')}><ChartIcon />查询统计</button>
-          <button className={tab === 'favorites' ? 'active' : ''} onClick={() => setTab('favorites')}><StarIcon />收藏夹</button>
-        </nav>
+        <div className="management-actions">
+          <nav className="tabs" aria-label="管理内容">
+            <button className={tab === 'stats' ? 'active' : ''} onClick={() => setTab('stats')}><ChartIcon />查询统计</button>
+            <button className={tab === 'favorites' ? 'active' : ''} onClick={() => setTab('favorites')}><StarIcon />收藏夹</button>
+          </nav>
+          <button className="icon-button management-close" onClick={() => void getCurrentWindow().hide()} title="关闭" aria-label="关闭"><CloseIcon /></button>
+        </div>
       </header>
       {error && <p className="error-banner">{error}</p>}
 

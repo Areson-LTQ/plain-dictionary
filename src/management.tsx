@@ -1,11 +1,11 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { ErrorBoundary } from './ErrorBoundary'
-import { MainWindow } from './MainWindow'
+import { ManagementWindow } from './ManagementWindow'
 import './styles.css'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <ErrorBoundary><MainWindow /></ErrorBoundary>
+    <ErrorBoundary><ManagementWindow /></ErrorBoundary>
   </StrictMode>,
 )

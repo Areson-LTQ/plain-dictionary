@@ -23,6 +23,17 @@
         "trafficLightPosition": { "x": 20, "y": 20 },
         "resizable": true,
         "center": true
+      },
+      {
+        "label": "management",
+        "title": "简词 · 管理",
+        "url": "management.html",
+        "width": 760,
+        "height": 620,
+        "minWidth": 600,
+        "minHeight": 460,
+        "visible": false,
+        "center": true
       }
     ],
     "security": {

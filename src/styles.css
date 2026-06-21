@@ -98,6 +98,8 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); ou
 .management-window { height: 100vh; min-height: 0; display: flex; flex-direction: column; overflow: hidden; padding: 28px 32px 20px; background: #f4f1eb; }
 .management-header { align-items: end; border-bottom: 1px solid var(--line); }
 .management-header h1 { margin: 4px 0 19px; font: 30px Georgia, serif; }
+.management-actions { display: flex; align-items: center; gap: 14px; }
+.management-close { margin-bottom: 13px; }
 .tabs { display: flex; gap: 20px; }
 .tabs button { display: flex; align-items: center; gap: 7px; padding: 14px 3px; border: 0; border-bottom: 2px solid transparent; background: transparent; color: var(--muted); cursor: pointer; }
 .tabs button.active { color: var(--ink); border-color: var(--accent); }

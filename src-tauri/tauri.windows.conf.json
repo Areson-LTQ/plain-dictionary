@@ -1,0 +1,28 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "app": {
+    "windows": [
+      {
+        "label": "main",
+        "title": "简词",
+        "width": 307,
+        "height": 188,
+        "minWidth": 280,
+        "minHeight": 188,
+        "resizable": true,
+        "center": true
+      },
+      {
+        "label": "management",
+        "title": "简词 · 管理",
+        "url": "management.html",
+        "width": 760,
+        "height": 620,
+        "minWidth": 600,
+        "minHeight": 460,
+        "visible": false,
+        "center": true
+      }
+    ]
+  }
+}

@@ -8,4 +8,5 @@ src-tauri/target/
 .DS_Store
 .cache/
 .release/
+.dev-data/
 dictionary-private*.pem

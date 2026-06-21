@@ -1,0 +1,39 @@
+name: Publish dictionary
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: sudo apt-get update && sudo apt-get install -y zstd
+      - run: npm run dictionary:build
+      - name: Prepare signing key
+        env:
+          DICTIONARY_PRIVATE_KEY: ${{ secrets.DICTIONARY_PRIVATE_KEY }}
+        run: printf '%s' "$DICTIONARY_PRIVATE_KEY" > /tmp/dictionary-private.pem
+      - name: Build signed release files
+        run: npm run dictionary:release -- --repository "$GITHUB_REPOSITORY" --key /tmp/dictionary-private.pem
+      - name: Publish GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="$(cat .release/tag.txt)"
+          gh release create "$TAG" \
+            ".release/$TAG/dictionary.sqlite.zst" \
+            ".release/$TAG/dictionary-manifest.json" \
+            --title "Dictionary $TAG" \
+            --notes "Signed offline dictionary update $TAG"
+          gh release view dictionary-latest >/dev/null 2>&1 || \
+            gh release create dictionary-latest --prerelease --title "Dictionary update channel" --notes "Stable manifest URL used by the desktop app"
+          gh release upload dictionary-latest ".release/$TAG/dictionary-manifest.json" --clobber

@@ -1,0 +1,11 @@
+node_modules/
+dist/
+src-tauri/target/
+*.sqlite
+!src-tauri/resources/dictionary.sqlite
+*.sqlite-shm
+*.sqlite-wal
+.DS_Store
+.cache/
+.release/
+dictionary-private*.pem

@@ -29,11 +29,22 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           TAG="$(cat .release/tag.txt)"
-          gh release create "$TAG" \
-            ".release/$TAG/dictionary.sqlite.zst" \
-            ".release/$TAG/dictionary-manifest.json" \
-            --title "Dictionary $TAG" \
-            --notes "Signed offline dictionary update $TAG"
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "Dictionary release $TAG already exists; reusing its signed manifest."
+            mkdir -p .release/existing
+            gh release download "$TAG" \
+              --pattern dictionary-manifest.json \
+              --dir .release/existing \
+              --clobber
+            MANIFEST_PATH=".release/existing/dictionary-manifest.json"
+          else
+            gh release create "$TAG" \
+              ".release/$TAG/dictionary.sqlite.zst" \
+              ".release/$TAG/dictionary-manifest.json" \
+              --title "Dictionary $TAG" \
+              --notes "Signed offline dictionary update $TAG"
+            MANIFEST_PATH=".release/$TAG/dictionary-manifest.json"
+          fi
           gh release view dictionary-latest >/dev/null 2>&1 || \
             gh release create dictionary-latest --prerelease --title "Dictionary update channel" --notes "Stable manifest URL used by the desktop app"
-          gh release upload dictionary-latest ".release/$TAG/dictionary-manifest.json" --clobber
+          gh release upload dictionary-latest "$MANIFEST_PATH" --clobber
